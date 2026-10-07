@@ -1,0 +1,532 @@
+
+import streamlit as st
+import torch
+import pandas as pd
+
+from pathlib import Path
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+
+# ============================================================
+# CONFIGURATION
+# ============================================================
+
+st.set_page_config(
+    page_title="Adaptation pédagogique EIAH",
+    page_icon="🎓",
+    layout="wide"
+)
+
+
+# ============================================================
+# CHEMINS
+# ============================================================
+
+MODEL_REPO = "Ichraf-Ben-Chaabane/modernbert-eiah-sentiment"
+
+# Répertoire de l'application
+BASE_DIR = Path(__file__).resolve().parent
+
+CHEMIN_HISTORIQUE = (
+    BASE_DIR / "data" / "evolution_5_sessions.csv"
+)
+
+CHEMIN_FIGURE_SENTIMENTS = (
+    BASE_DIR / "figures" / "evolution_sentiments_par_session.png"
+)
+
+CHEMIN_FIGURE_STYLE = (
+    BASE_DIR / "figures" / "evolution_style_enseignement.png"
+)
+
+
+# ============================================================
+# PROFIL EXPERIMENTAL
+# ============================================================
+
+PROFIL_EXPERIMENTAL = (
+    "ACTIF",
+    "SENSORIEL",
+    "VISUEL",
+    "SEQUENTIEL"
+)
+
+
+# ============================================================
+# BASE DE REGLES PEDAGOGIQUES
+# ============================================================
+
+BASE_REGLES = {
+
+    # Style actuel : COMMANDEMENT
+
+    ("POSITIF", *PROFIL_EXPERIMENTAL, "COMMANDEMENT"):
+        "PRATIQUE",
+
+    ("NEUTRE", *PROFIL_EXPERIMENTAL, "COMMANDEMENT"):
+        "COMMANDEMENT",
+
+    ("NEGATIF", *PROFIL_EXPERIMENTAL, "COMMANDEMENT"):
+        "COMMANDEMENT",
+
+
+    # Style actuel : PRATIQUE
+
+    ("POSITIF", *PROFIL_EXPERIMENTAL, "PRATIQUE"):
+        "INCLUSION",
+
+    ("NEUTRE", *PROFIL_EXPERIMENTAL, "PRATIQUE"):
+        "PRATIQUE",
+
+    ("NEGATIF", *PROFIL_EXPERIMENTAL, "PRATIQUE"):
+        "COMMANDEMENT",
+
+
+    # Style actuel : INCLUSION
+
+    ("POSITIF", *PROFIL_EXPERIMENTAL, "INCLUSION"):
+        "DECOUVERTE_GUIDEE",
+
+    ("NEUTRE", *PROFIL_EXPERIMENTAL, "INCLUSION"):
+        "INCLUSION",
+
+    ("NEGATIF", *PROFIL_EXPERIMENTAL, "INCLUSION"):
+        "PRATIQUE",
+
+
+    # Style actuel : DECOUVERTE GUIDEE
+
+    ("POSITIF", *PROFIL_EXPERIMENTAL, "DECOUVERTE_GUIDEE"):
+        "DECOUVERTE_GUIDEE",
+
+    ("NEUTRE", *PROFIL_EXPERIMENTAL, "DECOUVERTE_GUIDEE"):
+        "DECOUVERTE_GUIDEE",
+
+    ("NEGATIF", *PROFIL_EXPERIMENTAL, "DECOUVERTE_GUIDEE"):
+        "INCLUSION",
+}
+
+
+def recommander_style(sentiment, profil, style_actuel):
+
+    cle = (
+        sentiment,
+        *profil,
+        style_actuel
+    )
+
+    return BASE_REGLES.get(cle)
+
+
+# ============================================================
+# CHARGEMENT MODERNBERT
+# ============================================================
+
+@st.cache_resource
+def charger_modernbert():
+
+    # Token Hugging Face stocké dans les secrets Streamlit
+    try:
+        hf_token = st.secrets["HF_TOKEN"]
+    except Exception:
+        hf_token = None
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_REPO,
+        token=hf_token
+    )
+
+    modele = AutoModelForSequenceClassification.from_pretrained(
+        MODEL_REPO,
+        token=hf_token
+    )
+
+    modele.to("cpu")
+    modele.eval()
+
+    return tokenizer, modele
+
+
+# ============================================================
+# ANALYSE SENTIMENTALE
+# ============================================================
+
+def analyser_sentiment(commentaire):
+
+    tokenizer, modele = charger_modernbert()
+
+    entrees = tokenizer(
+        commentaire,
+        return_tensors="pt",
+        truncation=True,
+        padding=True,
+        max_length=128
+    )
+
+    with torch.no_grad():
+
+        sorties = modele(**entrees)
+
+        probabilites = torch.softmax(
+            sorties.logits,
+            dim=-1
+        )
+
+    classe = int(
+        torch.argmax(
+            probabilites,
+            dim=-1
+        ).item()
+    )
+
+    confiance = float(
+        probabilites[0][classe].item()
+    )
+
+    # Mapping vérifié du checkpoint expérimental
+    mapping = {
+        0: "NEGATIF",
+        1: "NEUTRE",
+        2: "POSITIF"
+    }
+
+    sentiment = mapping[classe]
+
+    return sentiment, confiance
+
+
+# ============================================================
+# FONCTION D'AFFICHAGE DES STYLES
+# ============================================================
+
+def afficher_style(style):
+
+    noms = {
+        "COMMANDEMENT": "Commandement",
+        "PRATIQUE": "Pratique",
+        "INCLUSION": "Inclusion",
+        "DECOUVERTE_GUIDEE": "Découverte guidée"
+    }
+
+    return noms.get(style, style)
+
+
+# ============================================================
+# EN-TETE
+# ============================================================
+
+st.title("🎓 Adaptation pédagogique dans un EIAH")
+
+st.write(
+    "Prototype fonctionnel d'orientation dynamique du style "
+    "d'enseignement à partir de l'analyse sentimentale "
+    "des commentaires d'un apprenant."
+)
+
+
+# ============================================================
+# ONGLETS
+# ============================================================
+
+tab_apprenant, tab_enseignant, tab_adaptation = st.tabs(
+    [
+        "👤 Espace Apprenant",
+        "👨‍🏫 Espace Enseignant",
+        "🔄 Adaptation dynamique"
+    ]
+)
+
+
+# ============================================================
+# ESPACE APPRENANT
+# ============================================================
+
+with tab_apprenant:
+
+    st.header("Espace Apprenant")
+
+    st.write(
+        "Cet espace permet de saisir un commentaire relatif "
+        "à l'expérience d'apprentissage."
+    )
+
+    commentaire = st.text_area(
+        "Commentaire de l'apprenant",
+        height=140,
+        placeholder="Saisir un commentaire..."
+    )
+
+    if st.button(
+        "Analyser le commentaire",
+        type="primary"
+    ):
+
+        if commentaire.strip():
+
+            with st.spinner(
+                "Analyse du commentaire avec ModernBERT..."
+            ):
+
+                sentiment, confiance = analyser_sentiment(
+                    commentaire
+                )
+
+            st.success(
+                f"Sentiment détecté : {sentiment}"
+            )
+
+            st.metric(
+                "Confiance du modèle",
+                f"{confiance * 100:.2f} %"
+            )
+
+            st.divider()
+
+            st.subheader(
+                "Orientation pédagogique"
+            )
+
+            style_actuel = "COMMANDEMENT"
+
+            style_recommande = recommander_style(
+                sentiment,
+                PROFIL_EXPERIMENTAL,
+                style_actuel
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.write(
+                    "**Style actuel :** "
+                    + afficher_style(style_actuel)
+                )
+
+            with col2:
+
+                st.write(
+                    "**Style recommandé :** "
+                    + afficher_style(style_recommande)
+                )
+
+            st.caption(
+                "La recommandation est issue de la base "
+                "expérimentale de règles pour le profil "
+                "Actif–Sensoriel–Visuel–Séquentiel."
+            )
+
+        else:
+
+            st.warning(
+                "Veuillez saisir un commentaire avant "
+                "de lancer l'analyse."
+            )
+
+
+# ============================================================
+# ESPACE ENSEIGNANT
+# ============================================================
+
+with tab_enseignant:
+
+    st.header("Espace Enseignant")
+
+    st.subheader(
+        "Profil de l'apprenant simulé"
+    )
+
+    st.write(
+        "**Apprenant simulé :** Apprenant 1"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.write("**Dimension 1 :** Actif")
+        st.write("**Dimension 2 :** Sensoriel")
+
+    with col2:
+
+        st.write("**Dimension 3 :** Visuel")
+        st.write("**Dimension 4 :** Séquentiel")
+
+    st.divider()
+
+    st.subheader(
+        "Paramètres du scénario expérimental"
+    )
+
+    st.write(
+        "**Style initial :** Commandement"
+    )
+
+    st.write(
+        "**Nombre de sessions simulées :** 5"
+    )
+
+    st.write(
+        "**Nombre de commentaires par session :** 6"
+    )
+
+    st.write(
+        "**Intervalle temporel simulé :** 30 minutes"
+    )
+
+    st.info(
+        "Le profil Felder–Silverman est fixé pour le scénario "
+        "expérimental. Il n'est pas déduit du dataset Coursera."
+    )
+
+
+# ============================================================
+# ADAPTATION DYNAMIQUE
+# ============================================================
+
+with tab_adaptation:
+
+    st.header(
+        "Adaptation dynamique"
+    )
+
+    st.subheader(
+        "Principe de fonctionnement"
+    )
+
+    st.write(
+        "Commentaire → Analyse sentimentale → "
+        "Profil + style actuel → Règle d'orientation → "
+        "Style recommandé → Décision de régulation "
+        "entre les sessions."
+    )
+
+    st.info(
+        "Simulation contrôlée : 5 sessions, "
+        "6 commentaires par session et un intervalle "
+        "simulé de 30 minutes."
+    )
+
+    # --------------------------------------------------------
+    # SENTIMENTS
+    # --------------------------------------------------------
+
+    st.divider()
+
+    st.subheader(
+        "Évolution des sentiments détectés"
+    )
+
+    if CHEMIN_FIGURE_SENTIMENTS.exists():
+
+        st.image(
+            str(CHEMIN_FIGURE_SENTIMENTS),
+            caption=(
+                "Évolution des sentiments prédits par "
+                "ModernBERT au cours des cinq sessions."
+            ),
+            use_container_width=True
+        )
+
+        st.caption(
+            "Chaque session comporte six commentaires. "
+            "Les résultats correspondent aux prédictions "
+            "obtenues sur les trente commentaires "
+            "de l'expérimentation contrôlée."
+        )
+
+    else:
+
+        st.warning(
+            "Le graphique des sentiments est introuvable."
+        )
+
+
+    # --------------------------------------------------------
+    # EVOLUTION DU STYLE
+    # --------------------------------------------------------
+
+    st.divider()
+
+    st.subheader(
+        "Évolution du style d'enseignement"
+    )
+
+    if CHEMIN_FIGURE_STYLE.exists():
+
+        st.image(
+            str(CHEMIN_FIGURE_STYLE),
+            caption=(
+                "Évolution du style d'enseignement "
+                "au cours des sessions simulées."
+            ),
+            use_container_width=True
+        )
+
+        st.caption(
+            "Le graphique représente uniquement les cinq "
+            "sessions effectivement simulées. La décision "
+            "prise à l'issue de la session 5 concerne le "
+            "style qui serait appliqué lors d'une éventuelle "
+            "session 6, non simulée dans cette expérimentation."
+        )
+
+    else:
+
+        st.warning(
+            "Le graphique d'évolution du style est introuvable."
+        )
+
+
+    # --------------------------------------------------------
+    # HISTORIQUE
+    # --------------------------------------------------------
+
+    st.divider()
+
+    st.subheader(
+        "Historique des sessions simulées"
+    )
+
+    if CHEMIN_HISTORIQUE.exists():
+
+        historique = pd.read_csv(
+            CHEMIN_HISTORIQUE
+        )
+
+        st.dataframe(
+            historique,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.caption(
+            "Historique des décisions de régulation "
+            "obtenues au cours des cinq sessions simulées."
+        )
+
+        st.info(
+            "La décision prise à la fin de la session 5 "
+            "propose le style de la session suivante. "
+            "La session 6 n'a pas été simulée."
+        )
+
+    else:
+
+        st.warning(
+            "Le fichier d'historique des sessions "
+            "est introuvable."
+        )
+
+
+# ============================================================
+# PIED DE PAGE
+# ============================================================
+
+st.divider()
+
+st.caption(
+    "Prototype développé dans le cadre du mémoire de recherche : "
+    "analyse sentimentale et orientation dynamique "
+    "du style d'enseignement dans un EIAH."
+)
