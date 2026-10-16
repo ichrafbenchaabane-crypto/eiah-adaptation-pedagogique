@@ -356,6 +356,7 @@ with tab_apprenant:
 
 
 
+
 # ============================================================
 # ESPACE ENSEIGNANT
 # ============================================================
@@ -364,52 +365,228 @@ with tab_enseignant:
 
     st.header("Espace Enseignant")
 
-    st.subheader(
-        "Profil de l'apprenant simulé"
-    )
+    # --------------------------------------------------------
+    # 1. PROFIL DE L'APPRENANT SIMULÉ
+    # --------------------------------------------------------
 
-    st.write(
-        "**Apprenant simulé :** Apprenant 1"
-    )
+    st.subheader("Profil de l'apprenant simulé")
+
+    st.write("**Apprenant simulé :** Apprenant 1")
 
     col1, col2 = st.columns(2)
 
     with col1:
-
         st.write("**Dimension 1 :** Actif")
         st.write("**Dimension 2 :** Sensoriel")
 
     with col2:
-
         st.write("**Dimension 3 :** Visuel")
         st.write("**Dimension 4 :** Séquentiel")
 
-    st.divider()
-
-    st.subheader(
-        "Paramètres du scénario expérimental"
-    )
-
-    st.write(
-        "**Style initial :** Commandement"
-    )
-
-    st.write(
-        "**Nombre de sessions simulées :** 5"
-    )
-
-    st.write(
-        "**Nombre de commentaires par session :** 6"
-    )
-
-    st.write(
-        "**Intervalle temporel simulé :** 30 minutes"
-    )
-
     st.info(
         "Le profil Felder–Silverman est fixé pour le scénario "
-        "expérimental. Il n'est pas déduit du dataset Coursera."
+        "expérimental. Il n'est pas déduit des commentaires "
+        "ni du dataset Coursera."
     )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # 2. PARAMÈTRES DU SCÉNARIO EXPÉRIMENTAL
+    # --------------------------------------------------------
+
+    st.subheader("Paramètres du scénario expérimental")
+
+    st.write("**Style initial :** Commandement")
+    st.write("**Nombre de sessions simulées :** 5")
+    st.write("**Nombre de commentaires par session :** 6")
+    st.write("**Nombre total de commentaires :** 30")
+    st.write("**Intervalle temporel simulé :** 30 minutes")
+
+    st.caption(
+        "Les sessions et les intervalles temporels sont "
+        "simulés. Ils ne correspondent pas à une expérimentation "
+        "réalisée auprès de 30 apprenants réels."
+    )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # 3. SUIVI DU DERNIER COMMENTAIRE ANALYSÉ
+    # --------------------------------------------------------
+
+    st.subheader("Suivi pédagogique du dernier commentaire")
+
+    resultat = st.session_state.get("resultat_analyse")
+
+    if not isinstance(resultat, dict):
+
+        st.info(
+            "Aucun commentaire analysé pour le moment. "
+            "Veuillez saisir un commentaire dans l'Espace "
+            "Apprenant et lancer son analyse."
+        )
+
+    else:
+
+        # Les clés sont lues uniquement lorsqu'elles existent.
+        # Aucun sentiment ou style n'est inventé.
+
+        def lire_champ(donnees, *cles):
+            for cle in cles:
+                valeur = donnees.get(cle)
+                if valeur is not None and valeur != "":
+                    return valeur
+            return None
+
+        commentaire = lire_champ(
+            resultat,
+            "commentaire",
+            "texte",
+            "text"
+        )
+
+        sentiment = lire_champ(
+            resultat,
+            "sentiment",
+            "sentiment_predit",
+            "prediction"
+        )
+
+        confiance = lire_champ(
+            resultat,
+            "confiance",
+            "score_confiance",
+            "confidence"
+        )
+
+        style_actuel = lire_champ(
+            resultat,
+            "style_actuel",
+            "style_courant"
+        )
+
+        style_recommande = lire_champ(
+            resultat,
+            "style_recommande",
+            "recommandation"
+        )
+
+        regle = lire_champ(
+            resultat,
+            "regle",
+            "regle_appliquee",
+            "regle_id"
+        )
+
+        # ----------------------------------------------------
+        # AFFICHAGE DES RÉSULTATS DISPONIBLES
+        # ----------------------------------------------------
+
+        if commentaire is not None:
+            st.write("**Commentaire analysé :**")
+            st.write(str(commentaire))
+        else:
+            st.caption(
+                "Le texte du commentaire n'est pas encore "
+                "enregistré dans le résultat d'analyse."
+            )
+
+        if sentiment is not None:
+            st.write("**Sentiment détecté :**", str(sentiment))
+        else:
+            st.caption("Sentiment non disponible.")
+
+        if confiance is not None:
+            try:
+                valeur_confiance = float(confiance)
+
+                # Les probabilités entre 0 et 1 sont
+                # converties en pourcentage.
+                if 0 <= valeur_confiance <= 1:
+                    valeur_confiance *= 100
+
+                st.write(
+                    f"**Score de confiance :** "
+                    f"{valeur_confiance:.2f} %"
+                )
+
+            except (TypeError, ValueError):
+                st.write(
+                    "**Score de confiance :**",
+                    str(confiance)
+                )
+
+        else:
+            st.caption("Score de confiance non disponible.")
+
+        if style_actuel is not None:
+            st.write(
+                "**Style d'enseignement actuel :**",
+                str(style_actuel)
+            )
+        else:
+            st.caption(
+                "Style actuel non enregistré dans ce résultat."
+            )
+
+        if style_recommande is not None:
+            st.write(
+                "**Style recommandé :**",
+                str(style_recommande)
+            )
+        else:
+            st.caption("Style recommandé non disponible.")
+
+        if regle is not None:
+            st.write(
+                "**Règle pédagogique appliquée :**",
+                str(regle)
+            )
+        else:
+            st.caption(
+                "L'identifiant de la règle appliquée "
+                "n'est pas disponible."
+            )
+
+        # ----------------------------------------------------
+        # 4. INTERPRÉTATION DE LA RECOMMANDATION
+        # ----------------------------------------------------
+
+        st.divider()
+        st.subheader("Interprétation pédagogique")
+
+        if style_actuel is not None and style_recommande is not None:
+
+            actuel = str(style_actuel).strip().upper()
+            recommande = str(style_recommande).strip().upper()
+
+            if actuel == recommande:
+                st.success(
+                    "La règle pédagogique recommande de "
+                    "maintenir le style d'enseignement actuel."
+                )
+            else:
+                st.info(
+                    "La règle pédagogique recommande un "
+                    "changement de style d'enseignement : "
+                    f"{style_actuel} vers {style_recommande}."
+                )
+
+        else:
+            st.info(
+                "L'interprétation sera disponible lorsque "
+                "le style actuel et le style recommandé "
+                "seront tous les deux enregistrés."
+            )
+
+        st.caption(
+            "Cette recommandation concerne le dernier "
+            "commentaire analysé. Elle ne signifie pas "
+            "qu'un changement de style a déjà été appliqué "
+            "à une session d'enseignement."
+        )
+
 
 
 # ============================================================
