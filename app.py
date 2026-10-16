@@ -264,8 +264,8 @@ with tab_apprenant:
         key="commentaire_apprenant"
     )
 
-       # Deux boutons de même largeur
-    col_analyser, col_reinitialiser = st.columns(2, gap="small")
+           # Deux petits boutons de même largeur, alignés à gauche
+    col_analyser, col_reinitialiser, espace = st.columns([1.7, 1.7, 5])
 
     with col_analyser:
         analyser = st.button(
