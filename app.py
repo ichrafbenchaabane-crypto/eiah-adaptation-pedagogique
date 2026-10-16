@@ -1,95 +1,134 @@
+"Profil + style actuel → Règle d'orientation → "
+        "Style recommandé → Décision de régulation "
+        "entre les sessions."
+    )
 
-import streamlit as st
-import torch
-import pandas as pd
+    st.info(
+        "Simulation contrôlée : 5 sessions, "
+        "6 commentaires par session et un intervalle "
+        "simulé de 30 minutes."
+    )
 
-from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    # --------------------------------------------------------
+    # SENTIMENTS
+    # --------------------------------------------------------
+
+    st.divider()
+
+    st.subheader(
+        "Évolution des sentiments détectés"
+    )
+
+    if CHEMIN_FIGURE_SENTIMENTS.exists():
+
+        st.image(
+            str(CHEMIN_FIGURE_SENTIMENTS),
+            caption=(
+                "Évolution des sentiments prédits par "
+                "ModernBERT au cours des cinq sessions."
+            ),
+            use_container_width=True
+        )
+
+        st.caption(
+            "Chaque session comporte six commentaires. "
+            "Les résultats correspondent aux prédictions "
+            "obtenues sur les trente commentaires "
+            "de l'expérimentation contrôlée."
+        )
+
+    else:
+
+        st.warning(
+            "Le graphique des sentiments est introuvable."
+        )
+
+
+    # --------------------------------------------------------
+    # EVOLUTION DU STYLE
+    # --------------------------------------------------------
+
+    st.divider()
+
+    st.subheader(
+        "Évolution du style d'enseignement"
+    )
+
+    if CHEMIN_FIGURE_STYLE.exists():
+
+        st.image(
+            str(CHEMIN_FIGURE_STYLE),
+            caption=(
+                "Évolution du style d'enseignement "
+                "au cours des sessions simulées."
+            ),
+            use_container_width=True
+        )
+
+        st.caption(
+            "Le graphique représente uniquement les cinq "
+            "sessions effectivement simulées. La décision "
+            "prise à l'issue de la session 5 concerne le "
+            "style qui serait appliqué lors d'une éventuelle "
+            "session 6, non simulée dans cette expérimentation."
+        )
+
+    else:
+
+        st.warning(
+            "Le graphique d'évolution du style est introuvable."
+        )
+
+
+    # --------------------------------------------------------
+    # HISTORIQUE
+    # --------------------------------------------------------
+
+    st.divider()
+
+    st.subheader(
+        "Historique des sessions simulées"
+    )
+
+    if CHEMIN_HISTORIQUE.exists():
+
+        historique = pd.read_csv(
+            CHEMIN_HISTORIQUE
+        )
+
+        st.dataframe(
+            historique,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.caption(
+            "Historique des décisions de régulation "
+            "obtenues au cours des cinq sessions simulées."
+        )
+
+        st.info(
+            "La décision prise à la fin de la session 5 "
+            "propose le style de la session suivante. "
+            "La session 6 n'a pas été simulée."
+        )
+
+    else:
+
+        st.warning(
+            "Le fichier d'historique des sessions "
+            "est introuvable."
+        )
 
 
 # ============================================================
-# CONFIGURATION
+# PIED DE PAGE
 # ============================================================
 
-st.set_page_config(
-    page_title="Adaptation pédagogique EIAH",
-    page_icon="🎓",
-    layout="wide"
+st.divider()
+
+st.caption(
+    "Prototype développé dans le cadre du mémoire de recherche : "
+    "analyse sentimentale et orientation dynamique "
+    "du style d'enseignement dans un EIAH."
 )
-
-
-# ============================================================
-# CHEMINS
-# ============================================================
-
-MODEL_REPO = "Ichraf-Ben-Chaabane/modernbert-eiah-sentiment"
-
-# Répertoire de l'application
-BASE_DIR = Path(__file__).resolve().parent
-
-CHEMIN_HISTORIQUE = (
-    BASE_DIR / "data" / "evolution_5_sessions.csv"
-)
-
-CHEMIN_FIGURE_SENTIMENTS = (
-    BASE_DIR / "figures" / "evolution_sentiments_par_session.png"
-)
-
-CHEMIN_FIGURE_STYLE = (
-    BASE_DIR / "figures" / "evolution_style_enseignement.png"
-)
-
-
-# ============================================================
-# PROFIL EXPERIMENTAL
-# ============================================================
-
-PROFIL_EXPERIMENTAL = (
-    "ACTIF",
-    "SENSORIEL",
-    "VISUEL",
-    "SEQUENTIEL"
-)
-
-
-# ============================================================
-# BASE DE REGLES PEDAGOGIQUES
-# ============================================================
-
-BASE_REGLES = {
-
-    # Style actuel : COMMANDEMENT
-
-    ("POSITIF", *PROFIL_EXPERIMENTAL, "COMMANDEMENT"):
-        "PRATIQUE",
-
-    ("NEUTRE", *PROFIL_EXPERIMENTAL, "COMMANDEMENT"):
-        "COMMANDEMENT",
-
-    ("NEGATIF", *PROFIL_EXPERIMENTAL, "COMMANDEMENT"):
-        "COMMANDEMENT",
-
-
-    # Style actuel : PRATIQUE
-
-    ("POSITIF", *PROFIL_EXPERIMENTAL, "PRATIQUE"):
-        "INCLUSION",
-
-    ("NEUTRE", *PROFIL_EXPERIMENTAL, "PRATIQUE"):
-        "PRATIQUE",
-
-    ("NEGATIF", *PROFIL_EXPERIMENTAL, "PRATIQUE"):
-        "COMMANDEMENT",
-
-
-    # Style actuel : INCLUSION
-
-    ("POSITIF", *PROFIL_EXPERIMENTAL, "INCLUSION"):
-        "DECOUVERTE_GUIDEE",
-
-    ("NEUTRE", *PROFIL_EXPERIMENTAL, "INCLUSION"):
-        "INCLUSION",
-
-    ("NEGATIF", *PROFIL_EXPERIMENTAL, "INCLUSION"):
-        "PRATIQUE",
-
