@@ -264,21 +264,22 @@ with tab_apprenant:
         key="commentaire_apprenant"
     )
 
-    # Deux boutons côte à côte
-    col_analyser, col_reinitialiser = st.columns(2)
+    # Boutons compacts, alignés à gauche
+    col_analyser, col_reinitialiser, espace = st.columns([1.6, 1.3, 5])
 
     with col_analyser:
         analyser = st.button(
             "Analyser le commentaire",
             type="primary",
-            use_container_width=True
+            use_container_width=False
         )
 
     with col_reinitialiser:
         st.button(
             "🔄 Réinitialiser",
+            type="secondary",
             on_click=reinitialiser_commentaire,
-            use_container_width=True
+            use_container_width=False
         )
 
     if analyser:
