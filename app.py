@@ -237,9 +237,16 @@ tab_apprenant, tab_enseignant, tab_adaptation = st.tabs(
 )
 
 
+
 # ============================================================
 # ESPACE APPRENANT
 # ============================================================
+
+def reinitialiser_commentaire():
+    # Effacer la saisie et le résultat précédent
+    st.session_state["commentaire_apprenant"] = ""
+    st.session_state.pop("resultat_analyse", None)
+
 
 with tab_apprenant:
 
@@ -253,38 +260,37 @@ with tab_apprenant:
     commentaire = st.text_area(
         "Commentaire de l'apprenant",
         height=140,
-        placeholder="Saisir un commentaire..."
+        placeholder="Saisir un commentaire...",
+        key="commentaire_apprenant"
     )
 
-    if st.button(
-        "Analyser le commentaire",
-        type="primary"
-    ):
+    # Deux boutons côte à côte
+    col_analyser, col_reinitialiser = st.columns(2)
+
+    with col_analyser:
+        analyser = st.button(
+            "Analyser le commentaire",
+            type="primary",
+            use_container_width=True
+        )
+
+    with col_reinitialiser:
+        st.button(
+            "🔄 Réinitialiser",
+            on_click=reinitialiser_commentaire,
+            use_container_width=True
+        )
+
+    if analyser:
 
         if commentaire.strip():
 
             with st.spinner(
                 "Analyse du commentaire avec ModernBERT..."
             ):
-
                 sentiment, confiance = analyser_sentiment(
                     commentaire
                 )
-
-            st.success(
-                f"Sentiment détecté : {sentiment}"
-            )
-
-            st.metric(
-                "Confiance du modèle",
-                f"{confiance * 100:.2f} %"
-            )
-
-            st.divider()
-
-            st.subheader(
-                "Orientation pédagogique"
-            )
 
             style_actuel = "COMMANDEMENT"
 
@@ -294,34 +300,59 @@ with tab_apprenant:
                 style_actuel
             )
 
-            col1, col2 = st.columns(2)
-
-            with col1:
-
-                st.write(
-                    "**Style actuel :** "
-                    + afficher_style(style_actuel)
-                )
-
-            with col2:
-
-                st.write(
-                    "**Style recommandé :** "
-                    + afficher_style(style_recommande)
-                )
-
-            st.caption(
-                "La recommandation est issue de la base "
-                "expérimentale de règles pour le profil "
-                "Actif–Sensoriel–Visuel–Séquentiel."
-            )
+            # Conserver le résultat entre les interactions
+            st.session_state["resultat_analyse"] = {
+                "sentiment": sentiment,
+                "confiance": confiance,
+                "style_actuel": style_actuel,
+                "style_recommande": style_recommande
+            }
 
         else:
-
+            st.session_state.pop("resultat_analyse", None)
             st.warning(
                 "Veuillez saisir un commentaire avant "
                 "de lancer l'analyse."
             )
+
+    # Afficher le résultat enregistré
+    if "resultat_analyse" in st.session_state:
+
+        resultat = st.session_state["resultat_analyse"]
+
+        st.success(
+            f"Sentiment détecté : {resultat['sentiment']}"
+        )
+
+        st.metric(
+            "Confiance du modèle",
+            f"{resultat['confiance'] * 100:.2f} %"
+        )
+
+        st.divider()
+
+        st.subheader("Orientation pédagogique")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.write(
+                "**Style actuel :** "
+                + afficher_style(resultat["style_actuel"])
+            )
+
+        with col2:
+            st.write(
+                "**Style recommandé :** "
+                + afficher_style(resultat["style_recommande"])
+            )
+
+        st.caption(
+            "La recommandation est issue de la base "
+            "expérimentale de règles pour le profil "
+            "Actif–Sensoriel–Visuel–Séquentiel."
+        )
+
 
 
 # ============================================================
