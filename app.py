@@ -331,29 +331,60 @@ with tab_apprenant:
             f"{resultat['confiance'] * 100:.2f} %"
         )
 
+       
         st.divider()
+        st.subheader("Interprétation pédagogique")
 
-        st.subheader("Orientation pédagogique")
+        if (
+            sentiment is not None
+            and style_actuel is not None
+            and style_recommande is not None
+        ):
+            actuel = str(style_actuel).strip().upper()
+            recommande = str(style_recommande).strip().upper()
+            sentiment_affiche = str(sentiment).strip().lower()
 
-        col1, col2 = st.columns(2)
-
-        with col1:
             st.write(
-                "**Style actuel :** "
-                + afficher_style(resultat["style_actuel"])
+                f"Le commentaire a été classé comme "
+                f"**{sentiment_affiche}** par ModernBERT."
             )
 
-        with col2:
-            st.write(
-                "**Style recommandé :** "
-                + afficher_style(resultat["style_recommande"])
+            if actuel == recommande:
+                st.success(
+                    f"Selon la règle pédagogique SI–ALORS, "
+                    f"le maintien du style "
+                    f"**{afficher_style(actuel)}** est recommandé "
+                    f"pour ce commentaire."
+                )
+            else:
+                st.info(
+                    f"Selon la règle pédagogique SI–ALORS, "
+                    f"le style **{afficher_style(recommande)}** "
+                    f"est recommandé à partir du style actuel "
+                    f"**{afficher_style(actuel)}**."
+                )
+
+            st.caption(
+                "Cette recommandation concerne uniquement "
+                "le dernier commentaire analysé. "
+                "Elle ne signifie pas qu'un changement "
+                "de style a déjà été appliqué."
             )
 
-        st.caption(
-            "La recommandation est issue de la base "
-            "expérimentale de règles pour le profil "
-            "Actif–Sensoriel–Visuel–Séquentiel."
-        )
+            st.warning(
+                "La décision de régulation est distincte : "
+                "elle nécessite l'analyse et le regroupement "
+                "des recommandations des six commentaires "
+                "d'une session, afin de déterminer le style "
+                "de la session suivante."
+            )
+
+        else:
+            st.info(
+                "L'interprétation sera disponible après "
+                "l'analyse d'un commentaire."
+            )
+
 
 
 
