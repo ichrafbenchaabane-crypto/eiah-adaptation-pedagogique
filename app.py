@@ -333,60 +333,25 @@ with tab_apprenant:
 
        
         st.divider()
-        st.subheader("Interprétation pédagogique")
+        st.subheader("Orientation pédagogique")
 
-        if (
-            sentiment is not None
-            and style_actuel is not None
-            and style_recommande is not None
-        ):
-            actuel = str(style_actuel).strip().upper()
-            recommande = str(style_recommande).strip().upper()
-            sentiment_affiche = str(sentiment).strip().lower()
-
+        col1, col2 = st.columns(2)
+        with col1:
             st.write(
-                f"Le commentaire a été classé comme "
-                f"**{sentiment_affiche}** par ModernBERT."
+                "**Style actuel :** "
+                + afficher_style(resultat["style_actuel"])
+            )
+        with col2:
+            st.write(
+                "**Style recommandé :** "
+                + afficher_style(resultat["style_recommande"])
             )
 
-            if actuel == recommande:
-                st.success(
-                    f"Selon la règle pédagogique SI–ALORS, "
-                    f"le maintien du style "
-                    f"**{afficher_style(actuel)}** est recommandé "
-                    f"pour ce commentaire."
-                )
-            else:
-                st.info(
-                    f"Selon la règle pédagogique SI–ALORS, "
-                    f"le style **{afficher_style(recommande)}** "
-                    f"est recommandé à partir du style actuel "
-                    f"**{afficher_style(actuel)}**."
-                )
-
-            st.caption(
-                "Cette recommandation concerne uniquement "
-                "le dernier commentaire analysé. "
-                "Elle ne signifie pas qu'un changement "
-                "de style a déjà été appliqué."
-            )
-
-            st.warning(
-                "La décision de régulation est distincte : "
-                "elle nécessite l'analyse et le regroupement "
-                "des recommandations des six commentaires "
-                "d'une session, afin de déterminer le style "
-                "de la session suivante."
-            )
-
-        else:
-            st.info(
-                "L'interprétation sera disponible après "
-                "l'analyse d'un commentaire."
-            )
-
-
-
+        st.caption(
+            "Recommandation individuelle issue des règles SI–ALORS "
+            "pour le profil Actif–Sensoriel–Visuel–Séquentiel. "
+            "Aucun changement de session n'est appliqué ici."
+        )
 
 
 # ============================================================
@@ -588,37 +553,48 @@ with tab_enseignant:
         st.divider()
         st.subheader("Interprétation pédagogique")
 
-        if style_actuel is not None and style_recommande is not None:
-
+        if (
+            sentiment is not None
+            and style_actuel is not None
+            and style_recommande is not None
+        ):
             actuel = str(style_actuel).strip().upper()
             recommande = str(style_recommande).strip().upper()
+            sentiment_affiche = str(sentiment).strip().lower()
+
+            st.write(
+                f"Le commentaire a été classé comme "
+                f"**{sentiment_affiche}** par ModernBERT."
+            )
 
             if actuel == recommande:
                 st.success(
-                    "La règle pédagogique recommande de "
-                    "maintenir le style d'enseignement actuel."
+                    "Selon la règle pédagogique SI–ALORS, "
+                    f"le maintien du style **{afficher_style(actuel)}** "
+                    "est recommandé pour ce commentaire."
                 )
             else:
                 st.info(
-                    "La règle pédagogique recommande un "
-                    "changement de style d'enseignement : "
-                    f"{style_actuel} vers {style_recommande}."
+                    "Selon la règle pédagogique SI–ALORS, "
+                    f"le style **{afficher_style(recommande)}** "
+                    "est recommandé à partir du style actuel "
+                    f"**{afficher_style(actuel)}**."
                 )
 
+            st.caption(
+                "Il s'agit d'une recommandation individuelle, "
+                "et non d'un changement de style déjà appliqué."
+            )
+            st.warning(
+                "La régulation entre sessions nécessite de regrouper "
+                "les recommandations des six commentaires d'une session. "
+                "Cette opération n'est pas déclenchée par cette analyse."
+            )
         else:
             st.info(
-                "L'interprétation sera disponible lorsque "
-                "le style actuel et le style recommandé "
-                "seront tous les deux enregistrés."
+                "L'interprétation sera disponible après "
+                "l'analyse d'un commentaire."
             )
-
-        st.caption(
-            "Cette recommandation concerne le dernier "
-            "commentaire analysé. Elle ne signifie pas "
-            "qu'un changement de style a déjà été appliqué "
-            "à une session d'enseignement."
-        )
-
 
 
 # ============================================================
@@ -789,5 +765,3 @@ st.caption(
     "analyse sentimentale et orientation dynamique "
     "du style d'enseignement dans un EIAH."
 )
-
-
